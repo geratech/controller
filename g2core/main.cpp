@@ -119,6 +119,9 @@ void application_init_startup(void)
     spindle_init();                 // should be after PWM and canonical machine inits and config_init()
     spindle_reset();
     temperature_init();
+    #ifdef CAN_ENABLED
+    can_init();
+    #endif
     gpio_reset();
 }
 

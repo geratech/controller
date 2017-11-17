@@ -168,6 +168,7 @@ extern "C" {
 
 /**** xio_flash_file - object to hold in-flash (compiled-in) "files" to run ****/
 
+extern bool cm_has_hold(void);
 struct xio_flash_file {
     const char * const _data;
     const int32_t _length;

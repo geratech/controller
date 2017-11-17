@@ -19,9 +19,12 @@
 
 #include "board_can.h"
 
+#ifndef _BOARD_CAN_C_
+#define _BOARD_CAN_C_
+
 CANRaw::CANRaw(Can* pCan, uint32_t En ) {
 	m_pCan = pCan;
-  nIRQ=(m_pCan == CAN0 ? CAN0_IRQn : CAN1_IRQn);
+	nIRQ=(m_pCan == CAN0 ? CAN0_IRQn : CAN1_IRQn);
 	enablePin = En;
 	bigEndian = false;
 	busSpeed = 0;
@@ -118,15 +121,15 @@ uint32_t CANRaw::begin(uint32_t baudrate)
 	return init(baudrate);
 }
 
-uint32_t CANRaw::begin(uint32_t baudrate, uint8_t enablePin)
+uint32_t CANRaw::begin(uint32_t baudrate, uint8_t _enablePin)
 {
-	this->enablePin = enablePin;
+	this->enablePin = _enablePin;
 	return init(baudrate);
 }
 
-uint32_t CANRaw::beginAutoSpeed(uint8_t enablePin)
+uint32_t CANRaw::beginAutoSpeed(uint8_t _enablePin)
 {
-    this->enablePin = enablePin;
+    this->enablePin = _enablePin;
     return beginAutoSpeed();
 }
 
@@ -436,25 +439,25 @@ void CANRaw::detachCANInterrupt(uint8_t mailBox)
 	cbCANFrame[mailBox] = 0;
 }
 
-bool CANRaw::attachObj(CANListener *listener)
+bool CANRaw::attachObj(CANListener *_listener)
 {
 	for (int i = 0; i < SIZE_LISTENERS; i++)
 	{
 		if (this->listener[i] == NULL)
 		{
-			this->listener[i] = listener;
-			listener->callbacksActive = 0;
+			this->listener[i] = _listener;
+			_listener->callbacksActive = 0;
 			return true;
 		}
 	}
 	return false;
 }
 
-bool CANRaw::detachObj(CANListener *listener)
+bool CANRaw::detachObj(CANListener *_listener)
 {
 	for (int i = 0; i < SIZE_LISTENERS; i++)
 	{
-		if (this->listener[i] == listener)
+		if (this->listener[i] == _listener)
 		{
 			this->listener[i] = NULL;
 			return true;
@@ -1584,10 +1587,6 @@ void CAN1_Handler(void)
 CANRaw Can0(CAN0, 0);
 CANRaw Can1(CAN1, 0);
 
-void hw_can_message_received (CAN_FRAME *frame) {
-	can_message_received(frame->id, frame->length, frame->data.bytes);
-}
-
 void hw_can_init () {
   Can0.begin(CAN_BPS_250K);
 
@@ -1605,20 +1604,13 @@ void hw_can_init () {
   Can0.setRXFilter(0, 0, false); //catch all mailbox - no mailbox ID specified
 
   //now register all of the callback functions.
-  Can0.setCallback(0, hw_can_message_received);
-  Can0.setCallback(1, hw_can_message_received);
-  Can0.setCallback(3, hw_can_message_received);
-  Can0.setCallback(4, hw_can_message_received);
-  Can0.setCallback(5, hw_can_message_received);
+  Can0.setCallback(0, can_message_received);
+  Can0.setCallback(1, can_message_received);
+  Can0.setCallback(3, can_message_received);
+  Can0.setCallback(4, can_message_received);
+  Can0.setCallback(5, can_message_received);
   //this function will get a callback for any mailbox that doesn't have a registered callback from above -> 2 and 6
-  Can0.setGeneralCallback(hw_can_message_received);
+  Can0.setGeneralCallback(can_message_received);
 }
 
-void hw_can_send_frame (uint32_t id, uint8_t length, uint8_t *data) {
-	CAN_FRAME f;
-	f.id = id;
-	f.length = length;
-	for (int i=0; i<length; i++) f.data.bytes[i] = data[i];
-
-	Can0.sendFrame(f);
-}
+#endif

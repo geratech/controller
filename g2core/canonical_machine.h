@@ -35,6 +35,7 @@
 #include "config.h"
 #include "hardware.h"                       // Note: hardware.h is specific to the hardware target selected
 #include "settings.h"
+#include "dynamic_registry.h"
 
 #if MARLIN_COMPAT_ENABLED == true
 #include "marlin_compatibility.h"           // import Marlin definitions and enums
@@ -424,9 +425,9 @@ typedef struct cmSingleton {                // struct to manage cm globals and c
     cmOverrideState mfo_state;              // feed override state machine
     cmQueueFlushState queue_flush_state;    // master queue flush state machine
 
-    uint8_t safety_interlock_disengaged;    // set non-zero to start interlock processing (value is input number)
-    uint8_t safety_interlock_reengaged;     // set non-zero to end interlock processing (value is input number)
     cmSafetyState safety_interlock_state;   // safety interlock state
+	DynamicRegistry<bool*> saftey_interlock_list;
+	
     uint32_t esc_boot_timer;                // timer for Electronic Speed Control (Spindle electronics) to boot
 
     cmHomingState homing_state;             // home: homing cycle sub-state machine

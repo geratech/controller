@@ -16,11 +16,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef _CAN_LIBRARY_
-#define _CAN_LIBRARY_
-#define CAN_ENABLED
+#ifndef _BOARD_CAN_H_
+#define _BOARD_CAN_H_
 
 #include "../../g2core.h"
+#include "can_bus.h"
 
 namespace libsam {
 	#include "pio.h"
@@ -143,35 +143,7 @@ const can_bit_timing_t can_bit_time[] = {
 	{25,  (7 + 1), (7 + 1), (7 + 1), (2 + 1), 68}
 };
 
-//This is architecture specific. DO NOT USE THIS UNION ON ANYTHING OTHER THAN THE CORTEX M3 / Arduino Due
-//UNLESS YOU DOUBLE CHECK THINGS!
-typedef union {
-  uint64_t value;
-	struct {
-		uint32_t low;
-		uint32_t high;
-	};
-	struct {
-		uint16_t s0;
-		uint16_t s1;
-		uint16_t s2;
-		uint16_t s3;
-  };
-	uint8_t bytes[8];
-	uint8_t byte[8]; //alternate name so you can omit the s if you feel it makes more sense
-} BytesUnion;
-
-typedef struct
-{
-  uint32_t id;		// EID if ide set, SID otherwise
-  uint32_t fid;		// family ID
-  uint8_t rtr;		// Remote Transmission Request
-  uint8_t priority;	// Priority but only important for TX frames and then only for special uses.
-  uint8_t extended;	// Extended ID flag
-  uint16_t time;      // CAN timer value when mailbox message was received.
-  uint8_t length;		// Number of data bytes
-  BytesUnion data;	// 64 bits - lots of ways to access it.
-} CAN_FRAME;
+typedef CanFrame CAN_FRAME;
 
 class CANListener
 {
@@ -366,11 +338,10 @@ class CANRaw
 };
 
 void hw_can_init();
-void hw_can_send_frame(uint32_t, uint8_t, uint8_t*);
 
 extern CANRaw Can0;
 extern CANRaw Can1;
 
-extern void can_message_received (uint32_t, uint8_t, uint8_t*);
+extern void can_message_received (CanFrame *frame);
 
 #endif // _CAN_LIBRARY_

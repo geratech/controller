@@ -40,354 +40,183 @@
  *  and lockout subsequent interrupts for the defined lockout period. Ditto on the method.
  */
 
+#ifndef _GPIO_C_GUARD_
+#define _GPIO_C_GUARD_
+
 #include "g2core.h"  // #1
 #include "config.h"  // #2
-#include "gpio.h"
 #include "stepper.h"
 #include "encoder.h"
 #include "hardware.h"
 #include "canonical_machine.h"
-#include "can_bus.h"
 #include "text_parser.h"
 #include "controller.h"
 #include "util.h"
 #include "report.h"
 #include "xio.h"
-
 #include "MotateTimers.h"
+#include "dynamic_registry.h"
+#include "gpio.h"
+
 using namespace Motate;
 
-/**** Allocate structures ****/
+DynamicRegistry<ioDigitalInput*> digitalInputs;
+d_out_t  d_out[D_OUT_CHANNELS];
+a_in_t   a_in[A_IN_CHANNELS];
+a_out_t  a_out[A_OUT_CHANNELS];
 
-d_in_t   d_in  [D_IN_CHANNELS  + D_IN_CAN_CHANNELS];
-d_out_t  d_out [D_OUT_CHANNELS + D_OUT_CAN_CHANNELS];
-a_in_t   a_in  [A_IN_CHANNELS  + A_IN_CAN_CHANNELS];
-a_out_t  a_out [A_OUT_CHANNELS + A_OUT_CAN_CHANNELS];
+void ioDigitalInput::reset() {
+  if (mode == IO_MODE_DISABLED) {
+    state = INPUT_DISABLED;
+    return;
+  }
+  
+  this->lockout_timer.clear();
+}
 
-/**** Extended DI structure ****/
+void ioDigitalInput::updateValue(bool value) {
+  // return if input is disabled (not supposed to happen)
+  if (mode == IO_MODE_DISABLED) {
+      state = INPUT_DISABLED;
+      return;
+  }
 
-// To be merged with ioDigitalInput later.
-// For now, we use a pointer to the correct d_in, since the old code did.
-// input_pin_num is the Motate pin number.
-// ext_pin_number is the JSON ("external") pin number, as in "di1".
-template <pin_number input_pin_num, uint8_t ext_pin_number>
-struct ioDigitalInputExt {
-    IRQPin<input_pin_num>  input_pin;
+  // return if the input is in lockout period (take no action)
+  if (lockout_timer.isSet() && !lockout_timer.isPast()) {
+      return;
+  }
+
+  int8_t value_corrected = (value ^ ((int)mode ^ 1));    // correct for NO or NC mode
+  if (state == (ioState)value_corrected) {
+      return;
+  }
+
+  // lockout the pin for lockout_ms
+  lockout_timer.set(lockout_ms);
+
+  // record the changed state
+  state = (ioState)value_corrected;
+  if (value_corrected == INPUT_ACTIVE) {
+      edge = INPUT_EDGE_LEADING;
+  } else {
+      edge = INPUT_EDGE_TRAILING;
+  }
+
+  // perform homing operations if in homing mode
+  if (homing_mode) {
+      if (edge == INPUT_EDGE_LEADING) {   // we only want the leading edge to fire
+          en_take_encoder_snapshot();
+          cm_start_hold();
+      }
+      return;
+  }
+
+  // perform probing operations if in probing mode
+  if (probing_mode) {
+      // We want to capture either way.
+      // Probing tests the start condition for the correct direction ahead of time.
+      // If we see any edge, it's the right one.
+      en_take_encoder_snapshot();
+      cm_start_hold();
+      return;
+  }
+
+  // *** NOTE: From this point on all conditionals assume we are NOT in homing or probe mode ***
+
+  // trigger the action on leading edges
+  if (edge == INPUT_EDGE_LEADING) {
+      if (action == INPUT_ACTION_STOP) {
+          cm_start_hold();
+      }
+      if (action == INPUT_ACTION_FAST_STOP) {
+          cm_start_hold();                        // for now is same as STOP
+      }
+      if (action == INPUT_ACTION_HALT) {
+          cm_halt_all();                            // hard stop, including spindle and coolant
+      }
+      if (action == INPUT_ACTION_ALARM) {
+          char msg[10];
+          sprintf(msg, "input %d", this->external_pin_num);
+          cm_alarm(STAT_ALARM, msg);
+      }
+      if (action == INPUT_ACTION_SHUTDOWN) {
+          char msg[10];
+          sprintf(msg, "input %d", this->external_pin_num);
+          cm_shutdown(STAT_SHUTDOWN, msg);
+      }
+      if (action == INPUT_ACTION_PANIC) {
+          char msg[10];
+          sprintf(msg, "input %d", this->external_pin_num);
+          cm_panic(STAT_PANIC, msg);
+      }
+      if (action == INPUT_ACTION_RESET) {
+          hw_hard_reset();
+      }
+  }
+
+  // these functions trigger on the leading edge
+  if (edge == INPUT_EDGE_LEADING) {
+      if (function == INPUT_FUNCTION_LIMIT) {
+          cm.limit_requested = this->external_pin_num;
+
+      } else if (function == INPUT_FUNCTION_SHUTDOWN) {
+          cm.shutdown_requested = this->external_pin_num;
+
+      } else if (function == INPUT_FUNCTION_INTERLOCK) {
+          cm.saftey_interlock_list.addEntry(&this->safteyInterlockEntry);
+      }
+  }
+
+  // trigger interlock release on trailing edge
+  if (edge == INPUT_EDGE_TRAILING) {
+      if (function == INPUT_FUNCTION_INTERLOCK) {
+          cm.saftey_interlock_list.removeEntry(&this->safteyInterlockEntry);
+      }
+  }
+
+  sr_request_status_report(SR_REQUEST_TIMED);   //+++++ Put this one back in.
+}
+
+template <pin_number input_pin_num>
+class ioDigitalInputExt : public ioDigitalInput {
+public:
+	ioDigitalInputExt(ioMode _mode = 0, inputAction _action = 0, inputFunc _function = 0, uint16_t _lockout_ms = INPUT_LOCKOUT_MS) : ioDigitalInput (_mode, _action, _function, _lockout_ms) {
+		
+	}
+  
+    IRQPin<input_pin_num> input_pin;
 
     /* Priority only needs set once in the system during startup.
      * However, if we wish to switch the interrupt trigger, here are other options:
      *  kPinInterruptOnRisingEdge
      *  kPinInterruptOnFallingEdge
      *
-     * To change the trigger or priority provide a third paramater intValue that will
+     * To change the trigger or priority provide a third parameter intValue that will
      * be called as pin.setInterrupts(intValue), or call pin.setInterrupts at any point.
      * Note that it may cause an interrupt to fire *immediately*!
      * intValue defaults to kPinInterruptOnChange|kPinInterruptPriorityMedium if not specified.
-     */
-    ioDigitalInputExt() : input_pin {kPullUp|kDebounce, [&]{this->pin_changed();}} {
-    };
+     */ 
+	
+    ioDigitalInputExt() : input_pin {kPullUp|kDebounce, [&]{this->updatePin();}} {};
 
     ioDigitalInputExt(const ioDigitalInputExt&) = delete; // delete copy
     ioDigitalInputExt(ioDigitalInputExt&&) = delete;      // delete move
-
-    void reset() {
-        if (D_IN_CHANNELS < ext_pin_number) { return; }
-
-        d_in_t *in = &d_in[ext_pin_number-1];
-
-        if (in->mode == IO_MODE_DISABLED) {
-            in->state = INPUT_DISABLED;
-            return;
-        }
-
-        bool pin_value = (bool)input_pin;
-        int8_t pin_value_corrected = (pin_value ^ ((int)in->mode ^ 1));    // correct for NO or NC mode
-        in->state = (ioState)pin_value_corrected;
+    
+    Motate::SysTickEvent polling_check {[&] {
+      updateValue((bool)input_pin);
+    }, nullptr};
+    
+    inline void reset() override {
+      SysTickTimer.unregisterEvent(this->polling_check);
+      ioDigitalInput::reset();
+      updateValue((bool)input_pin);
+      SysTickTimer.registerEvent(this->polling_check);
     }
-
-    void pin_changed() {
-        if (D_IN_CHANNELS < ext_pin_number) { return; }
-
-        d_in_t *in = &d_in[ext_pin_number-1];
-
-        // return if input is disabled (not supposed to happen)
-        if (in->mode == IO_MODE_DISABLED) {
-            in->state = INPUT_DISABLED;
-            return;
-        }
-
-        // return if the input is in lockout period (take no action)
-        if (in->lockout_timer.isSet() && !in->lockout_timer.isPast()) {
-            return;
-        }
-
-        // return if no change in state
-        bool pin_value = (bool)input_pin;
-        int8_t pin_value_corrected = (pin_value ^ ((int)in->mode ^ 1));    // correct for NO or NC mode
-        if (in->state == (ioState)pin_value_corrected) {
-            return;
-        }
-
-        // lockout the pin for lockout_ms
-        in->lockout_timer.set(in->lockout_ms);
-
-        // record the changed state
-        in->state = (ioState)pin_value_corrected;
-        if (pin_value_corrected == INPUT_ACTIVE) {
-            in->edge = INPUT_EDGE_LEADING;
-        } else {
-            in->edge = INPUT_EDGE_TRAILING;
-        }
-
-        // perform homing operations if in homing mode
-        if (in->homing_mode) {
-            if (in->edge == INPUT_EDGE_LEADING) {   // we only want the leading edge to fire
-                en_take_encoder_snapshot();
-                cm_start_hold();
-            }
-            return;
-        }
-
-        // perform probing operations if in probing mode
-        if (in->probing_mode) {
-            // We want to capture either way.
-            // Probing tests the start condition for the correct direction ahead of time.
-            // If we see any edge, it's the right one.
-            en_take_encoder_snapshot();
-            cm_start_hold();
-            return;
-        }
-
-        // *** NOTE: From this point on all conditionals assume we are NOT in homing or probe mode ***
-
-        // trigger the action on leading edges
-        if (in->edge == INPUT_EDGE_LEADING) {
-            if (in->action == INPUT_ACTION_STOP) {
-                cm_start_hold();
-            }
-            if (in->action == INPUT_ACTION_FAST_STOP) {
-                cm_start_hold();                        // for now is same as STOP
-            }
-            if (in->action == INPUT_ACTION_HALT) {
-                cm_halt_all();                            // hard stop, including spindle and coolant
-            }
-            if (in->action == INPUT_ACTION_ALARM) {
-                char msg[10];
-                sprintf(msg, "input %d", ext_pin_number);
-                cm_alarm(STAT_ALARM, msg);
-            }
-            if (in->action == INPUT_ACTION_SHUTDOWN) {
-                char msg[10];
-                sprintf(msg, "input %d", ext_pin_number);
-                cm_shutdown(STAT_SHUTDOWN, msg);
-            }
-            if (in->action == INPUT_ACTION_PANIC) {
-                char msg[10];
-                sprintf(msg, "input %d", ext_pin_number);
-                cm_panic(STAT_PANIC, msg);
-            }
-            if (in->action == INPUT_ACTION_RESET) {
-                hw_hard_reset();
-            }
-        }
-
-        // these functions trigger on the leading edge
-        if (in->edge == INPUT_EDGE_LEADING) {
-            if (in->function == INPUT_FUNCTION_LIMIT) {
-                cm.limit_requested = ext_pin_number;
-
-            } else if (in->function == INPUT_FUNCTION_SHUTDOWN) {
-                cm.shutdown_requested = ext_pin_number;
-
-            } else if (in->function == INPUT_FUNCTION_INTERLOCK) {
-                cm.safety_interlock_disengaged = ext_pin_number;
-            }
-        }
-
-        // trigger interlock release on trailing edge
-        if (in->edge == INPUT_EDGE_TRAILING) {
-            if (in->function == INPUT_FUNCTION_INTERLOCK) {
-                cm.safety_interlock_reengaged = ext_pin_number;
-            }
-        }
-
-        sr_request_status_report(SR_REQUEST_TIMED);   //+++++ Put this one back in.
-    };
+    
+    inline void updatePin() {
+      updateValue((bool)input_pin);
+    }
 };
-
-struct ioDigitalInputVirtual {
-    uint8_t ext_pin_number = D_IN_CHANNELS;
-
-    bool reset() {
-        if (D_IN_CAN_CHANNELS+D_IN_CHANNELS < ext_pin_number) { return false; }
-
-        d_in_t *in = &d_in[ext_pin_number-1];
-
-        if (in->mode == IO_MODE_DISABLED) {
-            in->state = INPUT_DISABLED;
-            return false;
-        }
-
-        // bool pin_value = (bool)input_pin;
-        // int8_t pin_value_corrected = (pin_value ^ ((int)in->mode ^ 1));    // correct for NO or NC mode
-        in->state = INPUT_INACTIVE;
-        return true;
-    }
-
-    void reset_with_value (bool pin_value) {
-      if (reset()) return;
-      d_in_t *in = &d_in[ext_pin_number-1];
-      int8_t pin_value_corrected = (pin_value ^ ((int)in->mode ^ 1));    // correct for NO or NC mode
-      in->state = (ioState)pin_value_corrected;
-    }
-
-    void pin_changed(bool pin_value) {
-        // xio_writeline("pin_changed\n");
-        if (D_IN_CAN_CHANNELS+D_IN_CHANNELS < ext_pin_number) { return; }
-        // xio_writeline("in_range\n");
-        d_in_t *in = &d_in[ext_pin_number-1];
-
-        // return if input is disabled (not supposed to happen)
-        if (in->mode == IO_MODE_DISABLED) {
-            in->state = INPUT_DISABLED;
-            return;
-        }
-        // xio_writeline("input_enabled\n");
-        // return if the input is in lockout period (take no action)
-        if (in->lockout_timer.isSet() && !in->lockout_timer.isPast()) {
-            return;
-        }
-        // xio_writeline("no_lockout\n");
-        // return if no change in state
-        int8_t pin_value_corrected = (pin_value ^ ((int)in->mode ^ 1));    // correct for NO or NC mode
-        // printf("new_pin_value: %i\n", pin_value);
-        // printf("new_pin_state: %i\n", pin_value_corrected);
-        if (in->state == (ioState)pin_value_corrected) {
-            return;
-        }
-        //xio_writeline("input_different_to_last_state");
-        // lockout the pin for lockout_ms
-        in->lockout_timer.set(in->lockout_ms);
-
-        // record the changed state
-        in->state = (ioState)pin_value_corrected;
-        if (pin_value_corrected == INPUT_ACTIVE) {
-            in->edge = INPUT_EDGE_LEADING;
-        } else {
-            in->edge = INPUT_EDGE_TRAILING;
-        }
-
-
-        // perform homing operations if in homing mode
-        if (in->homing_mode) {
-            if (in->edge == INPUT_EDGE_LEADING) {   // we only want the leading edge to fire
-                en_take_encoder_snapshot();
-                cm_start_hold();
-            }
-            return;
-        }
-
-        // perform probing operations if in probing mode
-        if (in->probing_mode) {
-            // We want to capture either way.
-            // Probing tests the start condition for the correct direction ahead of time.
-            // If we see any edge, it's the right one.
-            en_take_encoder_snapshot();
-            cm_start_hold();
-            return;
-        }
-
-        // *** NOTE: From this point on all conditionals assume we are NOT in homing or probe mode ***
-
-        // trigger the action on leading edges
-        if (in->edge == INPUT_EDGE_LEADING) {
-            if (in->action == INPUT_ACTION_STOP) {
-                cm_start_hold();
-            }
-            if (in->action == INPUT_ACTION_FAST_STOP) {
-                cm_start_hold();                        // for now is same as STOP
-            }
-            if (in->action == INPUT_ACTION_HALT) {
-                cm_halt_all();                            // hard stop, including spindle and coolant
-            }
-            if (in->action == INPUT_ACTION_ALARM) {
-                char msg[10];
-                sprintf(msg, "input %d", ext_pin_number);
-                cm_alarm(STAT_ALARM, msg);
-            }
-            if (in->action == INPUT_ACTION_SHUTDOWN) {
-                char msg[10];
-                sprintf(msg, "input %d", ext_pin_number);
-                cm_shutdown(STAT_SHUTDOWN, msg);
-            }
-            if (in->action == INPUT_ACTION_PANIC) {
-                char msg[10];
-                sprintf(msg, "input %d", ext_pin_number);
-                cm_panic(STAT_PANIC, msg);
-            }
-            if (in->action == INPUT_ACTION_RESET) {
-                hw_hard_reset();
-            }
-        }
-
-        // these functions trigger on the leading edge
-        if (in->edge == INPUT_EDGE_LEADING) {
-            if (in->function == INPUT_FUNCTION_LIMIT) {
-                cm.limit_requested = ext_pin_number;
-
-            } else if (in->function == INPUT_FUNCTION_SHUTDOWN) {
-                cm.shutdown_requested = ext_pin_number;
-
-            } else if (in->function == INPUT_FUNCTION_INTERLOCK) {
-                cm.safety_interlock_disengaged = ext_pin_number;
-            }
-        }
-
-        // trigger interlock release on trailing edge
-        if (in->edge == INPUT_EDGE_TRAILING) {
-            if (in->function == INPUT_FUNCTION_INTERLOCK) {
-                cm.safety_interlock_reengaged = ext_pin_number;
-            }
-        }
-
-        sr_request_status_report(SR_REQUEST_TIMED);   //+++++ Put this one back in.
-    };
-};
-
-/**** Setup Low Level Stuff ****/
-
-ioDigitalInputExt<kInput1_PinNumber  ,  1> _din1;
-ioDigitalInputExt<kInput2_PinNumber  ,  2> _din2;
-ioDigitalInputExt<kInput3_PinNumber  ,  3> _din3;
-ioDigitalInputExt<kInput4_PinNumber  ,  4> _din4;
-ioDigitalInputExt<kInput5_PinNumber  ,  5> _din5;
-ioDigitalInputExt<kInput6_PinNumber  ,  6> _din6;
-ioDigitalInputExt<kInput7_PinNumber  ,  7> _din7;
-ioDigitalInputExt<kInput8_PinNumber  ,  8> _din8;
-ioDigitalInputExt<kInput9_PinNumber  ,  9> _din9;
-ioDigitalInputExt<kInput10_PinNumber , 10> _din10;
-ioDigitalInputExt<kInput11_PinNumber , 11> _din11;
-ioDigitalInputExt<kInput12_PinNumber , 12> _din12;
-
-#ifdef CAN_ENABLED
-//Generated with
-//perl -e 'for($i=1;$i<13;$i++) { print "#if D_IN_CAN_CHANNELS >= ${i}\nioDigitalInputVirtual<${i}> _vdin${i};\n#endif\n";}'
-
-ioDigitalInputVirtual _vdin[D_IN_CAN_CHANNELS];
-
-void can_gpio_received (int pin_num, uint8_t length, uint8_t* data) {
-  //printf("pin: %i\n value: %i\n", pin_num, data[0]);
-
-  if (pin_num >= D_IN_CAN_CHANNELS) return;
-
-  bool pin_value=false;
-
-  if (data[0] > 0) pin_value=true;
-  printf("%i/n", pin_num);
-  _vdin[pin_num].pin_changed(pin_value);
-}
-
-#endif
 
 // Generated with:
 // perl -e 'for($i=1;$i<14;$i++) { print "#if OUTPUT${i}_PWM == 1\nstatic PWMOutputPin<kOutput${i}_PinNumber>  output_${i}_pin;\n#else\nstatic PWMLikeOutputPin<kOutput${i}_PinNumber>  output_${i}_pin;\n#endif\n";}'
@@ -489,10 +318,6 @@ void gpio_init(void)
     output_13_pin.setFrequency(200000);
     // END generated
 
-    for (int i=0;i<D_IN_CAN_CHANNELS;i++) {
-      _vdin[i].ext_pin_number=D_IN_CHANNELS+i+1;
-    }
-
     return(gpio_reset());
 }
 
@@ -537,44 +362,13 @@ void outputs_reset(void) {
 #if D_OUT_CHANNELS >= 13
     if (d_out[13-1].mode != IO_MODE_DISABLED) { (output_13_pin   = (d_out[13-1].mode == IO_ACTIVE_LOW) ? 1.0 : 0.0); }
 #endif
-
-  //Can reset
-#ifdef CAN_ENABLED
-  for (int i=D_OUT_CHANNELS; i< D_OUT_CHANNELS+D_OUT_CAN_CHANNELS-1; i++){
-    if (d_out[i].mode != IO_MODE_DISABLED) {
-      can_digital_output(i, ((d_out[13-1].mode == IO_ACTIVE_LOW) ? true : false));
-    }
-  }
-#endif
 }
 
 void inputs_reset(void) {
-    d_in_t *in;
-
-    for (uint8_t i=0; i<D_IN_CHANNELS+D_IN_CAN_CHANNELS; i++) {
-        in = &d_in[i];
-        if (in->mode == IO_MODE_DISABLED) {
-            in->state = INPUT_DISABLED;
-            continue;
-        }
-        in->lockout_ms = INPUT_LOCKOUT_MS;
-        in->lockout_timer.clear();
-    }
-
-  _din1.reset();
-  _din2.reset();
-  _din3.reset();
-  _din4.reset();
-  _din5.reset();
-  _din6.reset();
-  _din7.reset();
-  _din8.reset();
-  _din9.reset();
-  _din10.reset();
-  _din11.reset();
-  _din12.reset();
-
-  for (int i=0;i<D_IN_CAN_CHANNELS;i++) _vdin[i].reset();
+	digitalInputs.iterateOver([&](ioDigitalInput *input) {
+		input->reset();
+		return false;
+	});
 }
 
 void gpio_reset(void)
@@ -612,10 +406,18 @@ void gpio_reset(void)
  */
 void  gpio_set_homing_mode(const uint8_t input_num_ext, const bool is_homing)
 {
-    if (input_num_ext == 0) {
-        return;
-    }
-    d_in[input_num_ext-1].homing_mode = is_homing;
+  if (input_num_ext == 0) {
+      return;
+  }
+  
+  digitalInputs.iterateOver([&](ioDigitalInput *input){
+    if (input->external_pin_num == input_num_ext) {
+      input->homing_mode = is_homing;
+      return true;
+    } 
+	
+	return false;
+  });
 }
 
 void  gpio_set_probing_mode(const uint8_t input_num_ext, const bool is_probing)
@@ -623,27 +425,41 @@ void  gpio_set_probing_mode(const uint8_t input_num_ext, const bool is_probing)
     if (input_num_ext == 0) {
         return;
     }
-    d_in[input_num_ext-1].probing_mode = is_probing;
+    
+    digitalInputs.iterateOver([&](ioDigitalInput *input){
+      if (input->external_pin_num == input_num_ext) {
+        input->probing_mode = is_probing;
+        return true;
+      } else return false;
+    });
 }
 
 int8_t gpio_get_probing_input(void)
 {
-    //inputs_reset();
-
-    for (uint8_t i = 0; i <= D_IN_CHANNELS+D_IN_CAN_CHANNELS; i++) {
-        if (d_in[i-1].function == INPUT_FUNCTION_PROBE) {
-            return (i);
-        }
-    }
-    return (-1);
+  int8_t probingInput = -1;
+  digitalInputs.iterateOver([&](ioDigitalInput *input){
+    if (input->function == INPUT_FUNCTION_PROBE) {
+      probingInput = input->external_pin_num;
+      return true;
+    } else return false;
+  });
+  return probingInput;
 }
 
-bool gpio_read_input(const uint8_t input_num_ext)
+bool gpio_read_input(uint8_t input_num_ext)
 {
-    if (input_num_ext == 0) {
-        return false;
-    }
-    return (d_in[input_num_ext-1].state);
+  if (input_num_ext == 0) {
+      return false;
+  }
+  
+  bool inputValue;
+  digitalInputs.iterateOver([&](ioDigitalInput *input){
+    if (input->external_pin_num == input_num_ext) {
+      inputValue = input->state;
+      return true;
+    } else return false;
+  });
+  return input_num_ext;
 }
 
 
@@ -704,7 +520,19 @@ stat_t io_get_input(nvObj_t *nv)
         // skip over "in"
         num_start+=2;
     }
-    nv->value = d_in[strtol(num_start, NULL, 10)-1].state;
+    
+    ioState inputState;
+    uint8_t pinNum = strtol(num_start, NULL, 10);
+    if (!digitalInputs.iterateOver([&](ioDigitalInput *input){
+      if (input->external_pin_num == pinNum) {
+        inputState = input->state;
+		return true;
+      } 
+	  
+	  return false;
+    })) return (STAT_INPUT_VALUE_RANGE_ERROR);
+    
+    nv->value = inputState;
 
     if (nv->value > 1.1) {
         nv->valuetype = TYPE_NULL;
@@ -725,7 +553,7 @@ stat_t io_set_domode(nvObj_t *nv)            // output function
     // the token has been stripped down to an ASCII digit string - use it as an index
     uint8_t output_num = strtol(num_start, NULL, 10);
 
-    if (output_num > D_OUT_CHANNELS+D_OUT_CAN_CHANNELS) {
+    if (output_num > D_OUT_CHANNELS) {
         nv->valuetype = TYPE_NULL;
         return(STAT_NO_GPIO);
     } // Force pins that aren't available to be "disabled"
@@ -767,7 +595,7 @@ stat_t io_get_output(nvObj_t *nv)
     // the token has been stripped down to an ASCII digit string - use it as an index
     uint8_t output_num = strtol(num_start, NULL, 10);
 
-    if (output_num > D_OUT_CHANNELS + D_OUT_CAN_CHANNELS) {
+    if (output_num > D_OUT_CHANNELS) {
         nv->valuetype = TYPE_NULL;
         return(STAT_NO_GPIO);
     }
@@ -905,3 +733,5 @@ stat_t io_set_output(nvObj_t *nv)
         xio_writeline(cs.out_buf);
     }
 #endif
+
+#endif // End Guard

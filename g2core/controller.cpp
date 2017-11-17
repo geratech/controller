@@ -297,7 +297,7 @@ static void _dispatch_kernel(const devflags_t flags)
         nv_copy_string(nv, cs.bufp);                        // copy the Gcode line
         nv->valuetype = TYPE_STRING;
         status = gcode_parser(cs.bufp);
-        
+
 #if MARLIN_COMPAT_ENABLED == true
         if (js.json_mode == MARLIN_COMM_MODE) {             // in case a marlin-specific M-code was found
             cs.comm_request_mode = MARLIN_COMM_MODE;        // mode of this command
@@ -337,7 +337,7 @@ static stat_t _controller_state()
 {
     if (cs.controller_state == CONTROLLER_CONNECTED) {        // first time through after reset
         cs.controller_state = CONTROLLER_STARTUP;
-        
+
         // This is here just to put a small delay in before the startup message.
 #if MARLIN_COMPAT_ENABLED == true
         // For Marlin compatibility, we need this to be long enough for the UI to say something and reveal
@@ -501,25 +501,19 @@ static stat_t _limit_switch_handler(void)
 static stat_t _interlock_handler(void)
 {
     if (cm.safety_interlock_enable) {
-    // interlock broken
-        if (cm.safety_interlock_disengaged != 0) {
-            cm.safety_interlock_disengaged = 0;
-            cm.safety_interlock_state = SAFETY_INTERLOCK_DISENGAGED;
-            cm_request_feedhold();                                  // may have already requested STOP as INPUT_ACTION
-            // feedhold was initiated by input action in gpio
-            // pause spindle
-            // pause coolant
-        }
-
-        // interlock restored
-        if ((cm.safety_interlock_reengaged != 0) && (mp_runtime_is_idle())) {
-            cm.safety_interlock_reengaged = 0;
-            cm.safety_interlock_state = SAFETY_INTERLOCK_ENGAGED;   // interlock restored
-            // restart spindle with dwell
-            cm_request_end_hold();                                // use cm_request_end_hold() instead of just ending
-            // restart coolant
-        }
+		if (cm.saftey_interlock_list.iterateOver([&](bool *check){ return *check; })) {
+			cm.safety_interlock_state = SAFETY_INTERLOCK_DISENGAGED;  // Interlock broken
+			cm_request_feedhold(); // may have already requested STOP as INPUT_ACTION
+			// TODO pause spindle
+			// TODO pause coolant
+		} else {
+			cm.safety_interlock_state = SAFETY_INTERLOCK_ENGAGED; // Interlock restored
+			// TODO restart spindle with dwell
+			cm_request_end_hold(); // use cm_request_end_hold() instead of just ending
+			// TODO restart coolant
+		}
     }
+	
     return(STAT_OK);
 }
 
@@ -555,5 +549,3 @@ stat_t _test_system_assertions()
     xio_test_assertions();
     return (STAT_OK);
 }
-
-    

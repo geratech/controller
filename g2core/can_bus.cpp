@@ -1,63 +1,86 @@
-
 #include "can_bus.h"
-// #define CAN_GPIO_INPUT_ADDRESS_1 0x42
+#include "settings/settings_can.h"
 
-#ifdef CAN_ENABLED
+#ifndef _CAN_BUS_C
+#define _CAN_BUS_C
 
-void can_send_message (uint32_t id, uint8_t length, uint8_t* data) {
-  hw_can_send_frame(id, length, data);
+DynamicRegistry<CanNode*> canNodes;
+bool canTrueBool = true;
+
+// SystickEvent for handling can heartbeat (must be registered before it is active)
+Motate::SysTickEvent can_heartbeat_check {[&] {
+	
+}, nullptr};
+
+CanEndpoint::CanEndpoint (CanNode *_node) {
+	this->node = node;
+	this->node->endpoints.addEntry(&this->endpointEntry);
+	cm.saftey_interlock_list.addEntry(&this->initInterlock);
+	this->CanEndpoint::state = CAN_ENDPOINT_INITALIZING;
 }
 
-void can_message_received (uint32_t id, uint8_t length, uint8_t* data) {
-  switch (id) {
-    //Generated with: perl -e 'for($i=1;$i<13 { print "#ifdef CAN_GPIO_INPUT_ADDRESS_${i}\ncase CAN_GPIO_INPUT_ADDRESS_${i}: can_gpio_received(${i}, length, data); break;\n#endif\n";}'
-    #ifdef CAN_GPIO_INPUT_ADDRESS_1
-    case CAN_GPIO_INPUT_ADDRESS_1: can_gpio_received(0, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_2
-    case CAN_GPIO_INPUT_ADDRESS_2: can_gpio_received(1, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_3
-    case CAN_GPIO_INPUT_ADDRESS_3: can_gpio_received(2, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_4
-    case CAN_GPIO_INPUT_ADDRESS_4: can_gpio_received(3, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_5
-    case CAN_GPIO_INPUT_ADDRESS_5: can_gpio_received(4, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_6
-    case CAN_GPIO_INPUT_ADDRESS_6: can_gpio_received(5, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_7
-    case CAN_GPIO_INPUT_ADDRESS_7: can_gpio_received(6, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_8
-    case CAN_GPIO_INPUT_ADDRESS_8: can_gpio_received(7, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_9
-    case CAN_GPIO_INPUT_ADDRESS_9: can_gpio_received(8, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_10
-    case CAN_GPIO_INPUT_ADDRESS_10: can_gpio_received(9, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_11
-    case CAN_GPIO_INPUT_ADDRESS_11: can_gpio_received(10, 1, data); break;
-    #endif
-    #ifdef CAN_GPIO_INPUT_ADDRESS_12
-    case CAN_GPIO_INPUT_ADDRESS_12: can_gpio_received(11, 1, data); break;
-    #endif
-
-  }
-  
-  //can_gpio_received(100, 1, data);
+CanEndpoint::~CanEndpoint () {
+	this->node->endpoints.removeEntry(&this->endpointEntry);
 }
 
-void can_digital_output (uint8_t pin_num, bool value) {
-  uint8_t data = (uint8_t)value;
-  switch (pin_num) {
-    case 1: can_send_message(0x201, 1, &data); break;
-  }
+bool CanDigitalInput::processMessage(CanFrame *frame) {
+	if (frame->id == canId) {
+		ioDigitalInput::updateValue(frame->data.bytes[0]);
+		this->CanEndpoint::state = CAN_ENPOINT_RUNNING;
+		return true;
+		} else {
+		return false;
+	}
+}
+
+CanDigitalInput::CanDigitalInput(int _canId, ioMode _mode, inputAction _action, inputFunc _function, uint16_t _lockout_ms) : CanEndpoint(this->node), ioDigitalInput(_canId, _mode, _action, _function, _lockout_ms) {
+	this->canId = _canId;
+	canNodes.iterateOver([&](CanNode *_node) {
+		if (_node->nodeId == _canId & (1<<canPhysicalNodeMax - 1)) {
+			_node->endpoints.addEntry(&this->endpointEntry);
+			this->node = _node;
+			return true;
+		} else return false;
+	});
+}
+
+CanNode::CanNode (int _nodeId) {
+	Motate::SysTickTimer.registerEvent(&this->heartbeatCheck);
+	cm.saftey_interlock_list.addEntry(&this->heartbeatInterlock);
+	canNodes.addEntry(&this->nodeEntry);
+	this->nodeId = _nodeId;
+}
+	
+CanNode::~CanNode() {
+	Motate::SysTickTimer.unregisterEvent(&this->heartbeatCheck);
+	cm.saftey_interlock_list.removeEntry(&this->heartbeatInterlock);
+}
+
+bool CanNode::processFrame(CanFrame *frame) {
+	if (this->nodeId == frame->nodeId()) {
+		this->heartbeatCounter = 0;
+		
+		this->endpoints.iterateOver([&] (CanEndpoint *endpoint) {
+			return endpoint->processMessage(frame);
+		});
+		
+		return true;
+	} else return false;
+}
+
+void can_init() {
+	hw_can_init();
+}
+
+void can_message_received (CanFrame *frame) {
+	if (frame->id == 0) cm_shutdown(STAT_SHUTDOWN, "CAN Estop"); // Shutdown State (EStop)
+	else canNodes.iterateOver([&] (CanNode *node) {
+		return node->processFrame(frame);
+	}); // If it's not an EStop, give it to the registry to process
+}
+
+void can_send_frame (CanFrame frame) {
+	Can0.sendFrame(frame);
 }
 
 #endif

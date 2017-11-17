@@ -28,15 +28,14 @@ ifeq ("$(BOARD)","geratech_proto")
 
     # Note: we call it "g2core-due" instead of "due" since the Motate built-in provides
     # a "due" BASE_BOARD.
-    BASE_BOARD = g2core-due
+    BASE_BOARD = geratech-due
     DEVICE_DEFINES += MOTATE_BOARD="geratech_proto"
     DEVICE_DEFINES += SETTINGS_FILE=${SETTINGS_FILE}
 endif
 
 ##########
-# The general g2core-due BASE_BOARD.
 
-ifeq ("$(BASE_BOARD)","g2core-due")
+ifeq ("$(BASE_BOARD)","geratech-due")
     _BOARD_FOUND = 1
 
     DEVICE_DEFINES += MOTATE_CONFIG_HAS_USBSERIAL=1
@@ -47,8 +46,6 @@ ifeq ("$(BASE_BOARD)","g2core-due")
     export CHIP
     CHIP_LOWERCASE = sam3x8e
 
-    # Note: we call it "g2core-due" instead of "due" since the Motate built-in provides
-    # a "due" BASE_BOARD.
     BOARD_PATH = ./board/geratech_proto
 		SOURCE_DIRS += ${BOARD_PATH} device/step_dir_driver
 		#SOURCE_DIRS += ${BOARD_PATH} device/step_dir_geratech_servo

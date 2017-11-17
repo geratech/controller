@@ -788,8 +788,8 @@ void canonical_machine_reset()
     cm.queue_flush_state = FLUSH_OFF;
     cm.end_hold_requested = false;
     cm.limit_requested = 0;                     // resets switch closures that occurred during initialization
-    cm.safety_interlock_disengaged = 0;         // ditto
-    cm.safety_interlock_reengaged = 0;          // ditto
+    //cm.safety_interlock_disengaged = 0;         // ditto
+    //cm.safety_interlock_reengaged = 0;          // ditto
     cm.shutdown_requested = 0;                  // ditto
     cm.probe_report_enable = PROBE_REPORT_ENABLE;
 
@@ -1890,6 +1890,7 @@ stat_t cm_feedhold_sequencing_callback()
  * cm_end_hold()   - end a feedhold by returning the system to normal operation
  * cm_queue_flush() - Flush planner queue and correct model positions
  */
+
 bool cm_has_hold()
 {
     return (cm.hold_state != FEEDHOLD_OFF);
@@ -2506,10 +2507,10 @@ stat_t cm_set_hi(nvObj_t *nv)
         nv->valuetype = TYPE_NULL;
         return (STAT_INPUT_LESS_THAN_MIN_VALUE);
     }
-    if (nv->value > D_IN_CHANNELS+D_IN_CAN_CHANNELS) {
-        nv->valuetype = TYPE_NULL;
-        return (STAT_INPUT_EXCEEDS_MAX_VALUE);
-    }
+    //if (nv->value > D_IN_CHANNELS) {
+        //nv->valuetype = TYPE_NULL;
+        //return (STAT_INPUT_EXCEEDS_MAX_VALUE);
+    //}
     set_ui8(nv);
     return (STAT_OK);
 }

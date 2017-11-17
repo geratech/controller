@@ -21,7 +21,8 @@
     <OverrideVtorValue>exception_table</OverrideVtorValue>
     <eraseonlaunchrule>1</eraseonlaunchrule>
     <AsfVersion>3.5.0</AsfVersion>
-    <avrtoolinterface>SWD</avrtoolinterface>
+    <avrtoolinterface>
+    </avrtoolinterface>
     <avrtool>com.atmel.avrdbg.tool.atmelice</avrtool>
     <com_atmel_avrdbg_tool_samice>
       <ToolType>com.atmel.avrdbg.tool.samice</ToolType>
@@ -56,7 +57,7 @@
         <documentation help="" />
         <offline-documentation help="" />
         <dependencies>
-          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.10.1" />
+          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.26.0" />
         </dependencies>
       </framework-data>
     </AsfFrameworkConfig>
@@ -117,6 +118,8 @@
     <UseGdbCustomPath>False</UseGdbCustomPath>
     <GdbCustomPath>
     </GdbCustomPath>
+    <ResetRule>0</ResetRule>
+    <EraseKey />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'gShield' ">
     <ToolchainSettings>
@@ -1520,6 +1523,72 @@
     <ExternalMakeFilePath>Makefile</ExternalMakeFilePath>
     <OutputPath>bin\TestQuadratic\</OutputPath>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'GeratechProto' ">
+    <ToolchainSettings>
+      <ArmGccCpp xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+        <armgcc.common.outputfiles.hex>True</armgcc.common.outputfiles.hex>
+        <armgcc.common.outputfiles.lss>True</armgcc.common.outputfiles.lss>
+        <armgcc.common.outputfiles.eep>True</armgcc.common.outputfiles.eep>
+        <armgcc.common.outputfiles.bin>True</armgcc.common.outputfiles.bin>
+        <armgcc.common.outputfiles.srec>True</armgcc.common.outputfiles.srec>
+        <armgcc.compiler.directories.IncludePaths>
+          <ListValues>
+            <Value>C:\Program Files\Atmel\Atmel Studio 6.0\extensions\Atmel\ARMGCC\3.3.1.128\ARMSupportFiles</Value>
+            <Value>C:\Program Files\Atmel\Atmel Studio 6.0\extensions\Atmel\ARMGCC\3.3.1.128\ARMSupportFiles\CMSIS\Include</Value>
+            <Value>C:\Program Files\Atmel\Atmel Studio 6.0\extensions\Atmel\ARMGCC\3.3.1.128\ARMSupportFiles\Device\ATMEL</Value>
+            <Value>C:\Program Files\Atmel\Atmel Studio 6.0\extensions\Atmel\ARMGCC\3.3.1.128\ARMSupportFiles\Device\ATMEL\sam3xa\include</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel\CMSIS\Include</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel\Device\ATMEL</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel\Device\ATMEL\sam3xa\include</Value>
+          </ListValues>
+        </armgcc.compiler.directories.IncludePaths>
+        <armgcc.compiler.optimization.level>Optimize (-O1)</armgcc.compiler.optimization.level>
+        <armgcc.compiler.optimization.PrepareFunctionsForGarbageCollection>True</armgcc.compiler.optimization.PrepareFunctionsForGarbageCollection>
+        <armgcc.compiler.optimization.DebugLevel>Maximum (-g3)</armgcc.compiler.optimization.DebugLevel>
+        <armgcc.compiler.warnings.AllWarnings>True</armgcc.compiler.warnings.AllWarnings>
+        <armgcccpp.compiler.directories.IncludePaths>
+          <ListValues>
+            <Value>C:\Program Files\Atmel\Atmel Studio 6.0\extensions\Atmel\ARMGCC\3.3.1.128\ARMSupportFiles</Value>
+            <Value>C:\Program Files\Atmel\Atmel Studio 6.0\extensions\Atmel\ARMGCC\3.3.1.128\ARMSupportFiles\CMSIS\Include</Value>
+            <Value>C:\Program Files\Atmel\Atmel Studio 6.0\extensions\Atmel\ARMGCC\3.3.1.128\ARMSupportFiles\Device\ATMEL</Value>
+            <Value>C:\Program Files\Atmel\Atmel Studio 6.0\extensions\Atmel\ARMGCC\3.3.1.128\ARMSupportFiles\Device\ATMEL\sam3xa\include</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel\CMSIS\Include</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel\Device\ATMEL</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel\Device\ATMEL\sam3xa\include</Value>
+          </ListValues>
+        </armgcccpp.compiler.directories.IncludePaths>
+        <armgcccpp.compiler.optimization.level>Optimize (-O1)</armgcccpp.compiler.optimization.level>
+        <armgcccpp.compiler.optimization.PrepareFunctionsForGarbageCollection>True</armgcccpp.compiler.optimization.PrepareFunctionsForGarbageCollection>
+        <armgcccpp.compiler.optimization.DebugLevel>Maximum (-g3)</armgcccpp.compiler.optimization.DebugLevel>
+        <armgcccpp.compiler.warnings.AllWarnings>True</armgcccpp.compiler.warnings.AllWarnings>
+        <armgcccpp.linker.libraries.Libraries>
+          <ListValues>
+            <Value>libm</Value>
+          </ListValues>
+        </armgcccpp.linker.libraries.Libraries>
+        <armgcccpp.linker.optimization.GarbageCollectUnusedSections>True</armgcccpp.linker.optimization.GarbageCollectUnusedSections>
+        <armgcccpp.linker.miscellaneous.LinkerFlags>-Tsam3x8c_flash.ld</armgcccpp.linker.miscellaneous.LinkerFlags>
+        <armgcccpp.assembler.debugging.DebugLevel>Default (-g)</armgcccpp.assembler.debugging.DebugLevel>
+        <armgcccpp.preprocessingassembler.general.IncludePaths>
+          <ListValues>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel\CMSIS\Include</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel\Device\ATMEL</Value>
+            <Value>C:\Program Files\Atmel\Atmel Toolchain\ARM GCC\Native\4.7.2.87\arm-gnu-toolchain\bin\..\..\CMSIS_Atmel\Device\ATMEL\sam3xa\include</Value>
+          </ListValues>
+        </armgcccpp.preprocessingassembler.general.IncludePaths>
+        <armgcccpp.preprocessingassembler.debugging.DebugLevel>Default (-Wa,-g)</armgcccpp.preprocessingassembler.debugging.DebugLevel>
+      </ArmGccCpp>
+    </ToolchainSettings>
+    <UsesExternalMakeFile>True</UsesExternalMakeFile>
+    <BuildTarget>CONFIG=geratech COLOR=0 VERBOSE=1</BuildTarget>
+    <CleanTarget>clean CONFIG=geratech </CleanTarget>
+    <ExternalMakeFilePath>Makefile</ExternalMakeFilePath>
+    <OutputDirectory />
+    <OutputPath>bin\GeratechProto\</OutputPath>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="board\Archim\Archim-pinout.h">
       <SubType>compile</SubType>
@@ -1594,6 +1663,216 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="board\g2v9\motate_pin_assignments.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\board_can.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\board_can.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\board_stepper.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\board_stepper.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\board_xio.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\board_xio.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\geratech_proto-pinout.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\hardware.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\hardware.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\chip.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\adc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\can.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\dacc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\efc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\emac.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\gpbr.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\interrupt_sam_nvic.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\pio.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\pio_it.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\pmc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\pwmc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\rstc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\rtc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\rtt.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\spi.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\ssc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\tc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\timetick.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\trng.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\twi.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\udp.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\udphs.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\uotghs_device.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\uotghs_host.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\usart.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\USB_device.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\USB_host.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\include\wdt.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\adc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\adc12_sam3u.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\can.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\dacc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\efc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\emac.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\gpbr.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\interrupt_sam_nvic.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\pio.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\pmc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\pwmc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\rstc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\rtc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\rtt.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\spi.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\ssc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\tc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\timetick.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\trng.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\twi.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\udp.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\udphs.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\uotghs.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\uotghs_device.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\uotghs_host.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\usart.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\libsam\source\wdt.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\motate_pin_assignments.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\pio.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\pio.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\pmc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="board\geratech_proto\pmc.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="board\gquadratic\board_stepper.cpp">
@@ -1692,6 +1971,12 @@
     <Compile Include="board\sbv300\sbv300-pinout.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="can_bus.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="can_bus.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="device\neopixel\neopixel.h">
       <SubType>compile</SubType>
     </Compile>
@@ -1707,6 +1992,12 @@
     <Compile Include="device\trinamic\tmc2130.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="dynamic_registry.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="dynamic_registry.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="g2core.h">
       <SubType>compile</SubType>
     </Compile>
@@ -1717,6 +2008,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="marlin_compatibility.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="settings\settings_can.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="settings\settings_geratech.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="settings\settings_makeblock.h">
@@ -1929,6 +2226,12 @@
     <Folder Include="board\Archim\" />
     <Folder Include="board\ArduinoDue\" />
     <Folder Include="board\g2v9" />
+    <Folder Include="board\geratech_proto\" />
+    <Folder Include="board\geratech_proto\libsam\" />
+    <Folder Include="board\geratech_proto\libsam\build_gcc\" />
+    <Folder Include="board\geratech_proto\libsam\build_iar\" />
+    <Folder Include="board\geratech_proto\libsam\include\" />
+    <Folder Include="board\geratech_proto\libsam\source\" />
     <Folder Include="board\gquintic\" />
     <Folder Include="board\gquadratic" />
     <Folder Include="board\printrboardg2\" />
@@ -1968,6 +2271,39 @@
       <SubType>compile</SubType>
     </None>
     <None Include="board\g2_default.gdb">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto.gdb">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto.mk">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto\libsam\build_gcc\debug.mk">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto\libsam\build_gcc\gcc.mk">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto\libsam\build_gcc\Makefile">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto\libsam\build_gcc\release.mk">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto\libsam\build_gcc\sam3.mk">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto\libsam\build_iar\libsam.ewd">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto\libsam\build_iar\libsam.ewp">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto\libsam\build_iar\libsam.eww">
+      <SubType>compile</SubType>
+    </None>
+    <None Include="board\geratech_proto\libsam\readme.txt">
       <SubType>compile</SubType>
     </None>
     <None Include="board\gquadratic.gdb">

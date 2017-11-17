@@ -204,6 +204,8 @@
 //*** CAN Settings ************************************************************
 //*****************************************************************************
 
+#define CAN_NODES_EXPECTED 2
+
 #define CAN_GPIO_INPUT_ADDRESS_1 0xA1
 #define CAN_GPIO_INPUT_ADDRESS_2 0x42
 //#define D_IN_CAN_CHANNELS  0
